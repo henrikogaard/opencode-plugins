@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { orderTabs, type TabRow } from "../src/shared/tabs"
 
 const rows: TabRow[] = [
-  { key: "a", index: 0, group: "auroradocs", updated: 10, draft: false },
+  { key: "a", index: 0, group: "alpha", updated: 10, draft: false },
   { key: "b", index: 1, group: "zeta", updated: 30, draft: false },
-  { key: "c", index: 2, group: "auroradocs", updated: 20, draft: false },
+  { key: "c", index: 2, group: "alpha", updated: 20, draft: false },
   { key: "d", index: 3, group: "~ Drafts", updated: 0, draft: true },
 ]
 

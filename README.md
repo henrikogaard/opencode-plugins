@@ -19,21 +19,26 @@ The ambient background (image, dither, ASCII, pixelation) is deliberately not in
 
 ## Install
 
-The desktop app reads GUI plugins from the global `opencode.json(c)` only.
+Clone the repository and build the bundle:
+
+```bash
+git clone https://github.com/henrikogaard/opencode-plugins.git
+cd opencode-plugins
+bun install
+bun run build
+```
+
+The desktop app reads GUI plugins from the global `opencode.json(c)` only. Add the package to your existing `plugins` array:
 
 ```jsonc
 {
-  "plugins": ["/Users/henrik/Dev/Repos/opencode-plugins/packages/workbench"]
+  "plugins": [
+    "/absolute/path/to/opencode-plugins/packages/workbench"
+  ]
 }
 ```
 
 Then reload OpenCode Desktop, or use **Settings → Extensions → Plugins**. A local directory resolves through its `package.json` `name` and `exports`; the bundle must exist before the app reads it.
-
-```bash
-cd /Users/henrik/Dev/Repos/opencode-plugins
-bun install
-bun run build
-```
 
 For development, keep a Vite watcher running. Each rebuild reloads the GUI in every window; the server part does not restart on a GUI rebuild.
 
@@ -81,7 +86,7 @@ All commands are published in **Settings → Shortcuts**, so you can assign your
 bun run typecheck
 bun test
 bun run build
-bun run smoke /Users/henrik/Dev/Repos/rista
+bun run smoke /path/to/a/repo
 ```
 
 The smoke script calls the server resolver directly and prints the snapshot. It is read-only.
