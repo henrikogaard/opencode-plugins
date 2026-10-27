@@ -269,6 +269,23 @@
   line-height: 16px;
 }
 
+.wb-subagent {
+  align-items: center;
+}
+
+.wb-subagent-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.wb-subagent .wb-row-title {
+  font-size: 11px;
+}
+
 .wb-error {
   display: flex;
   flex-direction: column;

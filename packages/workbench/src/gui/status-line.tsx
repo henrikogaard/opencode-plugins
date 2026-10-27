@@ -31,7 +31,20 @@ export function StatusLine(props: { state: WorkbenchState }) {
   const pull = () => snapshot()?.current
   const otherPulls = () => (pull() ? 0 : (snapshot()?.prs.length ?? 0))
   const dirty = () => snapshot()?.dirty ?? 0
-  const tasks = () => session()?.background.length ?? 0
+  const tasks = () => (session()?.background ?? []).filter((task) => task.type === "shell").length
+  const agents = () => {
+    const current = session()
+    if (!current) return { total: 0, running: 0 }
+
+    const data = current.server.data
+    const root = data.session.root(current.id)
+    const ids = data.session.family(root).filter((id) => id !== root)
+
+    return {
+      total: ids.length,
+      running: ids.filter((id) => data.session.status(id) === "running").length,
+    }
+  }
   const context = createMemo(() => {
     const current = session()
     return current ? contextInfo(current, ctx.screen.current()?.composer.model()) : undefined
@@ -83,14 +96,21 @@ export function StatusLine(props: { state: WorkbenchState }) {
             <Show when={tasks() > 0}>
               <span class="wb-status-sep" />
               <span class="wb-status-item">
-                <ui.Icon name="task" size="small" />
+                <ui.Icon name="terminal" size="small" />
                 {tasks()}
+              </span>
+            </Show>
+            <Show when={agents().total > 0}>
+              <span class="wb-status-sep" />
+              <span class="wb-status-item" title={ctx.t("status.agents")}>
+                <ui.Icon name="brain" size="small" />
+                {agents().running > 0 ? `${agents().running}/${agents().total}` : agents().total}
               </span>
             </Show>
             <Show when={context()?.limit}>
               <span class="wb-status-sep" />
               <span class="wb-status-item">
-                <ui.Icon name="brain" size="small" />
+                <ui.Icon name="window-analytics" size="small" />
                 {context()?.pct ?? 0}%
               </span>
             </Show>

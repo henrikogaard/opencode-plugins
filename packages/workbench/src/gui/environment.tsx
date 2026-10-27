@@ -15,6 +15,7 @@ import { basename, formatNumber, relativeTime, shortPath } from "./format"
 import { checksIcon, checksTone, mergeIcon, mergeTone, reviewIcon, reviewTone, toneClass } from "./icons"
 import { contextInfo } from "./metrics"
 import type { WorkbenchState } from "./state"
+import { SubagentsSection } from "./subagents"
 
 interface Change {
   file: string
@@ -308,6 +309,10 @@ export function EnvironmentView(props: {
               )}
             </Show>
           </Section>
+        </Show>
+
+        <Show when={prefs.value.subagents}>
+          <SubagentsSection session={props.session} />
         </Show>
 
         <Show when={prefs.value.tasks}>

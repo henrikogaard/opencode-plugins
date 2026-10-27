@@ -17,6 +17,7 @@ export function WorkbenchSettings(props: { state: WorkbenchState }) {
   const setPrs = (value: boolean) => prefs.update((draft) => void (draft.prs = value))
   const setIssues = (value: boolean) => prefs.update((draft) => void (draft.issues = value))
   const setChanges = (value: boolean) => prefs.update((draft) => void (draft.changes = value))
+  const setSubagents = (value: boolean) => prefs.update((draft) => void (draft.subagents = value))
   const setTasks = (value: boolean) => prefs.update((draft) => void (draft.tasks = value))
   const setConnectors = (value: boolean) => prefs.update((draft) => void (draft.connectors = value))
   const setContext = (value: boolean) => prefs.update((draft) => void (draft.context = value))
@@ -150,6 +151,17 @@ export function WorkbenchSettings(props: { state: WorkbenchState }) {
         <Row
           label={ctx.t("settings.prs")}
           control={<ui.Switch label={ctx.t("settings.prs")} hideLabel checked={prefs.value.prs} onChange={setPrs} />}
+        />
+        <Row
+          label={ctx.t("settings.subagents")}
+          control={
+            <ui.Switch
+              label={ctx.t("settings.subagents")}
+              hideLabel
+              checked={prefs.value.subagents}
+              onChange={setSubagents}
+            />
+          }
         />
         <Row
           label={ctx.t("settings.changes")}
