@@ -1,0 +1,34 @@
+{
+  "name": "opencode-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc.ts",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "smoke": "bun run scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "@types/node": "24.12.2",
+    "effect": "4.0.1",
+    "electron": "44.9.1",
+    "solid-js": "1.9.15",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vite-plugin-solid": "2.11.10"
+  }
+}

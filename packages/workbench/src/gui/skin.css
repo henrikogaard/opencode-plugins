@@ -1,0 +1,59 @@
+html[data-workbench-skin="claude"] {
+  --font-family-sans: "SF Mono", "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace !important;
+  --font-family-mono: "SF Mono", "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace !important;
+  --v2-font-family-sans: var(--font-family-sans) !important;
+  --v2-font-family-code: var(--font-family-mono) !important;
+
+  --v2-background-bg-base: #171614 !important;
+  --v2-background-bg-deep: #0f0e0d !important;
+  --v2-background-bg-layer-01: #1e1c1a !important;
+  --v2-background-bg-layer-02: #24211e !important;
+  --v2-background-bg-layer-03: #2a2723 !important;
+  --v2-background-bg-layer-04: #302c27 !important;
+
+  --v2-text-text-base: #e8e3dc !important;
+  --v2-text-text-muted: #a49d94 !important;
+  --v2-text-text-faint: #7a746c !important;
+  --v2-text-text-accent: #d97757 !important;
+
+  --v2-border-border-base: #35312c !important;
+  --v2-border-border-muted: #2a2723 !important;
+  --v2-border-border-strong: #4a443d !important;
+  --v2-border-border-focus: #d97757 !important;
+
+  --v2-state-fg-success: #7fb069 !important;
+  --v2-state-fg-danger: #d16666 !important;
+  --v2-state-fg-warning: #d9a441 !important;
+
+  --v2-elevation-floating: none !important;
+  --v2-elevation-raised: none !important;
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+
+  font-variant-ligatures: none;
+}
+
+html[data-workbench-skin="claude"] [data-component="button-v2"],
+html[data-workbench-skin="claude"] [data-component="icon-button-v2"],
+html[data-workbench-skin="claude"] [data-component="card"],
+html[data-workbench-skin="claude"] [data-component="dialog-v2"],
+html[data-workbench-skin="claude"] [data-component="menu-v2-content"],
+html[data-workbench-skin="claude"] [data-component="popover-content"],
+html[data-workbench-skin="claude"] [data-component="tooltip-v2"] {
+  border-radius: 3px !important;
+  box-shadow: none !important;
+}
+
+html[data-workbench-skin="claude"] [data-component="button-v2"],
+html[data-workbench-skin="claude"] [data-component="icon-button-v2"] {
+  border-width: 1px;
+}
+
+html[data-workbench-skin="claude"] [data-component="menu-v2-item"][data-highlighted],
+html[data-workbench-skin="claude"] [data-component="menu-v2-item"]:hover {
+  border-radius: 2px !important;
+}
