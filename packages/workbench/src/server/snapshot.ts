@@ -93,8 +93,9 @@ export function repoName(url: string | undefined): string | undefined {
   return parts.slice(-2).join("/")
 }
 
-const FAILED = new Set(["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "ERROR"])
+const FAILED = new Set(["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "ERROR", "STARTUP_FAILURE", "STALE"])
 const PENDING = new Set(["IN_PROGRESS", "QUEUED", "PENDING", "WAITING", "REQUESTED"])
+const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 
 export function aggregateChecks(rollup: unknown): CheckState {
   if (!Array.isArray(rollup) || rollup.length === 0) return "none"
@@ -102,7 +103,7 @@ export function aggregateChecks(rollup: unknown): CheckState {
   let pending = false
 
   for (const item of rollup) {
-    if (!item || typeof item !== "object") continue
+    if (!item || typeof item !== "object") return "failure"
 
     const value = item as Record<string, unknown>
     const conclusion = typeof value.conclusion === "string" ? value.conclusion.toUpperCase() : undefined
@@ -110,7 +111,31 @@ export function aggregateChecks(rollup: unknown): CheckState {
     const state = typeof value.state === "string" ? value.state.toUpperCase() : undefined
 
     if ((conclusion && FAILED.has(conclusion)) || (state && FAILED.has(state))) return "failure"
-    if ((status && status !== "COMPLETED") || (state && PENDING.has(state))) pending = true
+
+    if (conclusion) {
+      if (PASSED.has(conclusion)) continue
+      return "failure"
+    }
+
+    if (state) {
+      if (state === "SUCCESS") continue
+      if (state === "PENDING") {
+        pending = true
+        continue
+      }
+      return "failure"
+    }
+
+    if (status) {
+      if (status === "COMPLETED") return "failure"
+      if (PENDING.has(status)) {
+        pending = true
+        continue
+      }
+      return "failure"
+    }
+
+    return "failure"
   }
 
   return pending ? "pending" : "success"

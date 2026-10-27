@@ -14,7 +14,7 @@ import { openCreatePull, openMergePull } from "./dialogs"
 import { basename, formatNumber, relativeTime, shortPath } from "./format"
 import { checksIcon, checksTone, mergeIcon, mergeTone, reviewIcon, reviewTone, toneClass } from "./icons"
 import { contextInfo } from "./metrics"
-import type { WorkbenchState } from "./state"
+import { isLocalSession, type WorkbenchState } from "./state"
 import { SubagentsSection } from "./subagents"
 
 interface Change {
@@ -42,8 +42,12 @@ export function EnvironmentView(props: {
   const ui = ctx.ui
   const prefs = ctx.stores.prefs
   const directory = () => props.session.directory
+  const local = () => isLocalSession(props.session)
 
-  createKeyed(directory, (dir) => props.state.watch(dir))
+  createKeyed(
+    () => (local() ? directory() : undefined),
+    (dir) => props.state.watch(dir),
+  )
 
   const snapshot = () => props.state.snapshot(directory())
   const loading = () => props.state.loading(directory())
@@ -83,6 +87,7 @@ export function EnvironmentView(props: {
   })
 
   const context = createMemo(() => contextInfo(props.session, props.screen.composer.model()))
+  const shells = () => props.session.background.filter((task) => task.type === "shell")
 
   const sortedPulls = createMemo(() => {
     const currentNumber = current()?.number
@@ -96,6 +101,8 @@ export function EnvironmentView(props: {
   })
 
   createEffect(() => {
+    if (!local()) return
+
     const location = props.session.location
     if (!location) return
 
@@ -137,7 +144,20 @@ export function EnvironmentView(props: {
   }
 
   return (
-    <div class="wb-panel" data-workbench="environment-panel">
+    <Show
+      when={local()}
+      fallback={
+        <div class="wb-panel" data-workbench="environment-panel">
+          <div class="wb-panel-header">
+            <div class="wb-panel-title">{ctx.t("panel.title")}</div>
+          </div>
+          <div class="wb-panel-scroll">
+            <div class="wb-error">{ctx.t("panel.remote")}</div>
+          </div>
+        </div>
+      }
+    >
+      <div class="wb-panel" data-workbench="environment-panel">
       <div class="wb-panel-header">
         <div class="wb-panel-title">{ctx.t("panel.title")}</div>
         <Show when={updated()}>
@@ -294,19 +314,30 @@ export function EnvironmentView(props: {
             title={ctx.t("panel.changes")}
             count={diffs()?.length === undefined ? undefined : `${changeTotals().files} · +${formatNumber(changeTotals().additions)} −${formatNumber(changeTotals().deletions)}`}
           >
-            <Show when={diffs()} fallback={<ui.Loader size="small" />}>
-              {(list) => (
-                <Show when={list().length > 0} fallback={<div class="wb-empty">{ctx.t("panel.noChanges")}</div>}>
-                  <For each={list().slice(0, 8)}>
-                    {(item) => <ChangeRow change={item} onClick={() => focusChange(item.file)} />}
-                  </For>
-                  <Show when={list().length > 8}>
-                    <ui.Button size="small" variant="ghost-muted" onClick={openChanges}>
-                      {ctx.t("panel.showReview")}
-                    </ui.Button>
+            <Show
+              when={changes().status === "active"}
+              fallback={
+                changes().status === "pending" ? (
+                  <ui.Loader size="small" />
+                ) : (
+                  <div class="wb-empty">{ctx.t("panel.changesUnavailable")}</div>
+                )
+              }
+            >
+              <Show when={diffs()} fallback={<ui.Loader size="small" />}>
+                {(list) => (
+                  <Show when={list().length > 0} fallback={<div class="wb-empty">{ctx.t("panel.noChanges")}</div>}>
+                    <For each={list().slice(0, 8)}>
+                      {(item) => <ChangeRow change={item} onClick={() => focusChange(item.file)} />}
+                    </For>
+                    <Show when={list().length > 8}>
+                      <ui.Button size="small" variant="ghost-muted" onClick={openChanges}>
+                        {ctx.t("panel.showReview")}
+                      </ui.Button>
+                    </Show>
                   </Show>
-                </Show>
-              )}
+                )}
+              </Show>
             </Show>
           </Section>
         </Show>
@@ -316,21 +347,21 @@ export function EnvironmentView(props: {
         </Show>
 
         <Show when={prefs.value.tasks}>
-          <Section title={ctx.t("panel.tasks")} count={props.session.background.length}>
+          <Section title={ctx.t("panel.tasks")} count={shells().length}>
             <Show
-              when={props.session.background.length > 0}
+              when={shells().length > 0}
               fallback={<div class="wb-empty">{ctx.t("panel.noTasks")}</div>}
             >
-              <For each={props.session.background}>
+              <For each={shells()}>
                 {(task) => (
                   <div class="wb-row">
-                    <ui.Icon name={task.type === "subagent" ? "brain" : "terminal"} size="small" class="wb-faint" />
+                    <ui.Icon name="terminal" size="small" class="wb-faint" />
                     <div class="wb-row-main">
                       <span class="wb-row-title">
                         <span class="truncate">{task.label}</span>
                       </span>
                       <span class="wb-row-detail">
-                        <span>{task.type === "subagent" ? task.agent ?? "subagent" : "shell"}</span>
+                        <span>shell</span>
                       </span>
                     </div>
                   </div>
@@ -371,31 +402,39 @@ export function EnvironmentView(props: {
 
         <Show when={prefs.value.issues}>
           <Section title={ctx.t("panel.issues")} count={issues().length}>
-            <Show when={issues().length > 0} fallback={<div class="wb-empty">{ctx.t("panel.noIssues")}</div>}>
-              <For each={issues()}>
-                {(issue) => (
-                  <button
-                    type="button"
-                    class="wb-row clickable"
-                    onClick={() => ctx.system.openExternal(issue.url)}
-                  >
-                    <ui.Icon name="circle-exclamation" size="small" class="wb-warn" />
-                    <span class="wb-row-main">
-                      <span class="wb-row-title">
-                        <span class="truncate">
-                          #{issue.number} {issue.title}
+            <Show
+              when={snapshot()?.issuesError}
+              fallback={
+                <Show when={issues().length > 0} fallback={<div class="wb-empty">{ctx.t("panel.noIssues")}</div>}>
+                  <For each={issues()}>
+                    {(issue) => (
+                      <button
+                        type="button"
+                        class="wb-row clickable"
+                        onClick={() => ctx.system.openExternal(issue.url)}
+                      >
+                        <ui.Icon name="circle-exclamation" size="small" class="wb-warn" />
+                        <span class="wb-row-main">
+                          <span class="wb-row-title">
+                            <span class="truncate">
+                              #{issue.number} {issue.title}
+                            </span>
+                          </span>
+                          <span class="wb-row-detail">{relativeTime(issue.updatedAt)}</span>
                         </span>
-                      </span>
-                      <span class="wb-row-detail">{relativeTime(issue.updatedAt)}</span>
-                    </span>
-                  </button>
-                )}
-              </For>
+                      </button>
+                    )}
+                  </For>
+                </Show>
+              }
+            >
+              {(message) => <div class="wb-empty wb-bad">{message()}</div>}
             </Show>
           </Section>
         </Show>
       </div>
     </div>
+    </Show>
   )
 }
 

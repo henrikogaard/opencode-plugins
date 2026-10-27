@@ -1,9 +1,18 @@
 import { createEffect, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { MountedSession, SetupContext } from "@opencode/plugin/gui"
+import {
+  createKeyed,
+  type MountedSession,
+  type SessionRef,
+  type SetupContext,
+} from "@opencode/plugin/gui"
 import { Workbench, type MutationOutput, type Snapshot } from "../rpc"
 import type { definition } from "./definition"
 import { sortTabsByProject } from "./tabs"
+
+export function isLocalSession(session: SessionRef | undefined): boolean {
+  return !!session?.server.builtin
+}
 
 export interface CreatePullValues {
   title: string
@@ -53,7 +62,13 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
     if (!directory) return Promise.resolve()
 
     const previous = inflight.get(directory)
-    if (previous) return previous
+    if (previous) {
+      if (!force) return previous
+      return previous.then(
+        () => load(directory, true),
+        () => load(directory, true),
+      )
+    }
 
     const now = Date.now()
     if (!force && now - (last.get(directory) ?? 0) < 8_000) return Promise.resolve()
@@ -62,6 +77,8 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
       setLoading(directory, true)
 
       try {
+        if (ctx.signal.aborted) return
+
         const result = (await ctx.client.rpc(Workbench).snapshot(
           {
             directory,
@@ -70,13 +87,16 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
             includeIssues: prefs.value.issues,
             refresh: force,
           },
-          { location: { directory } },
+          { signal: ctx.signal, location: { directory } },
         )) as Snapshot
+
+        if (ctx.signal.aborted) return
 
         setSnapshots(directory, result)
         setErrors(directory, result.error)
         last.set(directory, Date.now())
       } catch (cause) {
+        if (ctx.signal.aborted) return
         setErrors(directory, cause instanceof Error ? cause.message : String(cause))
       } finally {
         setLoading(directory, false)
@@ -87,6 +107,18 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
     inflight.set(directory, task)
     return task
   }
+
+  createKeyed(
+    () => ctx.servers.get("sidecar")?.client,
+    (client) => {
+      const off = client.rpc(Workbench).events.on("refreshed", (event) => {
+        const directory = (event.data as { directory?: string }).directory
+        if (directory) void load(directory, true)
+      })
+
+      onCleanup(off)
+    },
+  )
 
   const watch = (directory: string) => {
     const count = watched.get(directory) ?? 0
@@ -156,6 +188,8 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
   }
 
   const createPull = async (session: MountedSession, input: CreatePullValues): Promise<MutationOutput> => {
+    if (!session.server.builtin) return { ok: false, error: ctx.t("panel.remote") }
+
     const result = (await ctx.client.rpc(Workbench).createPull(
       {
         ...input,
@@ -170,6 +204,8 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
   }
 
   const mergePull = async (session: MountedSession, input: MergePullValues): Promise<MutationOutput> => {
+    if (!session.server.builtin) return { ok: false, error: ctx.t("panel.remote") }
+
     const result = (await ctx.client.rpc(Workbench).mergePull(
       {
         ...input,

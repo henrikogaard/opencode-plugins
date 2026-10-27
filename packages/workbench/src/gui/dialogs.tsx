@@ -28,7 +28,7 @@ function CreatePullDialog(props: {
 }) {
   const ui = props.ctx.ui
   const branch = () => props.snapshot?.branch ?? ""
-  const base = () => props.snapshot?.base ?? "main"
+  const base = () => props.snapshot?.base ?? ""
   const [title, setTitle] = createSignal(humanizeBranch(branch()))
   const [body, setBody] = createSignal("")
   const [baseValue, setBaseValue] = createSignal(base())
@@ -37,8 +37,10 @@ function CreatePullDialog(props: {
   const [busy, setBusy] = createSignal(false)
   const [error, setError] = createSignal<string>()
 
+  const sameBranch = () => !!baseValue().trim() && baseValue().trim() === branch()
+
   const submit = async () => {
-    if (busy() || !title().trim()) return
+    if (busy() || !title().trim() || sameBranch()) return
 
     setBusy(true)
     setError(undefined)
@@ -77,7 +79,10 @@ function CreatePullDialog(props: {
   return (
     <ui.Dialog
       title={props.ctx.t("dialog.create.title")}
-      description={props.ctx.t("dialog.create.description", { branch: branch() || "HEAD", base: baseValue() })}
+      description={props.ctx.t("dialog.create.description", {
+        branch: branch() || "HEAD",
+        base: baseValue() || "the default branch",
+      })}
       size="large"
       footer={
         <>
@@ -87,7 +92,7 @@ function CreatePullDialog(props: {
           <ui.Button
             variant="contrast"
             busy={busy()}
-            disabled={!title().trim() || busy()}
+            disabled={!title().trim() || busy() || sameBranch()}
             onClick={() => void submit()}
           >
             {busy() ? props.ctx.t("dialog.create.busy") : props.ctx.t("dialog.create.submit")}
@@ -100,6 +105,10 @@ function CreatePullDialog(props: {
           {(message) => <div class="wb-error">{message()}</div>}
         </Show>
 
+        <Show when={sameBranch()}>
+          <p class="wb-dialog-note wb-warn">{props.ctx.t("dialog.create.sameBranch")}</p>
+        </Show>
+
         <ui.TextInput
           label={props.ctx.t("dialog.create.titleLabel")}
           value={title()}
@@ -110,6 +119,7 @@ function CreatePullDialog(props: {
 
         <ui.TextInput
           label={props.ctx.t("dialog.create.baseLabel")}
+          placeholder="default"
           value={baseValue()}
           onInput={setBaseValue}
         />

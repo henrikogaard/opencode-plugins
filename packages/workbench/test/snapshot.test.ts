@@ -67,6 +67,23 @@ describe("aggregateChecks", () => {
       ]),
     ).toBe("failure")
   })
+
+  test("treats unknown, stale, startup and malformed completed entries as failures", () => {
+    expect(aggregateChecks([{ status: "COMPLETED", conclusion: "STARTUP_FAILURE" }])).toBe("failure")
+    expect(aggregateChecks([{ status: "COMPLETED", conclusion: "STALE" }])).toBe("failure")
+    expect(aggregateChecks([{ status: "COMPLETED" }])).toBe("failure")
+    expect(aggregateChecks([{}])).toBe("failure")
+    expect(aggregateChecks([null])).toBe("failure")
+    expect(aggregateChecks([{ status: "COMPLETED", conclusion: "SOMETHING_NEW" }])).toBe("failure")
+  })
+
+  test("accepts skipped and neutral conclusions and status contexts", () => {
+    expect(aggregateChecks([{ status: "COMPLETED", conclusion: "SKIPPED" }])).toBe("success")
+    expect(aggregateChecks([{ status: "COMPLETED", conclusion: "NEUTRAL" }])).toBe("success")
+    expect(aggregateChecks([{ state: "SUCCESS" }])).toBe("success")
+    expect(aggregateChecks([{ state: "PENDING" }])).toBe("pending")
+    expect(aggregateChecks([{ state: "FAILURE" }])).toBe("failure")
+  })
 })
 
 describe("states", () => {

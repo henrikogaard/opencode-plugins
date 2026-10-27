@@ -1,5 +1,6 @@
 import type { CreatePullInput, MergePullInput, Snapshot, SnapshotInput } from "../rpc"
-import { cleanError, findGh, firstUrl, run } from "./exec"
+import { commandError, findGh, firstUrl, run } from "./exec"
+import { createPullArgs, pushArgs } from "./args"
 import {
   mapPull,
   normalizeRemote,
@@ -64,12 +65,12 @@ function empty(directory: string, error?: string): Snapshot {
   return value
 }
 
-function jsonArray(value: string): unknown[] {
+export function parseJsonArray(value: string): unknown[] | undefined {
   try {
     const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
+    return Array.isArray(parsed) ? parsed : undefined
   } catch {
-    return []
+    return undefined
   }
 }
 
@@ -79,19 +80,22 @@ async function checkAuth(gh: string, signal: AbortSignal): Promise<{ auth: boole
 
   const result = await run(gh, ["auth", "status", "--hostname", "github.com"], { signal, timeout: 10_000 })
 
-  const value =
-    result.code === 0
-      ? { auth: true }
-      : {
-          auth: false,
-          error:
-            result.reason === "ENOENT" || result.code === 127
-              ? "GitHub CLI (gh) was not found. Install it or set its path in Workbench settings."
-              : "GitHub CLI is not signed in. Run `gh auth login` in a terminal.",
-        }
+  if (result.aborted) return { auth: false, error: "Cancelled." }
+  if (result.timedOut) return { auth: false, error: "GitHub CLI timed out." }
 
-  authChecks.set(gh, { at: Date.now(), value })
-  return value
+  if (result.code === 0) {
+    const value = { auth: true }
+    authChecks.set(gh, { at: Date.now(), value })
+    return value
+  }
+
+  return {
+    auth: false,
+    error:
+      result.reason === "ENOENT" || result.code === 127
+        ? "GitHub CLI (gh) was not found. Install it or set its path in Workbench settings."
+        : "GitHub CLI is not signed in. Run `gh auth login` in a terminal.",
+  }
 }
 
 async function baseBranch(directory: string, gh: string, signal: AbortSignal): Promise<string | undefined> {
@@ -129,9 +133,7 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
   ])
 
   if (status.code !== 0) {
-    const value = empty(directory, cleanError(status.stderr, status.stdout))
-    snapshots.set(key, { at: Date.now(), value })
-    return value
+    return empty(directory, commandError(status, "git status"))
   }
 
   const summary = parseStatus(status.stdout)
@@ -164,13 +166,11 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
 
   if (!url) {
     value.error = "No GitHub remote in this repository."
-    snapshots.set(key, { at: Date.now(), value })
     return value
   }
 
   if (!url.includes("github.com")) {
     value.error = "This repository is not hosted on GitHub."
-    snapshots.set(key, { at: Date.now(), value })
     return value
   }
 
@@ -179,7 +179,6 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
 
   if (!auth.auth) {
     value.error = auth.error
-    snapshots.set(key, { at: Date.now(), value })
     return value
   }
 
@@ -192,12 +191,17 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
   )
 
   if (pulls.code !== 0) {
-    value.error = cleanError(pulls.stderr, pulls.stdout)
-    snapshots.set(key, { at: Date.now(), value })
+    value.error = commandError(pulls, "GitHub PR list")
     return value
   }
 
-  value.prs = jsonArray(pulls.stdout)
+  const rawPulls = parseJsonArray(pulls.stdout)
+  if (!rawPulls) {
+    value.error = "Could not read the pull request list."
+    return value
+  }
+
+  value.prs = rawPulls
     .map((item) => mapPull(item as RawPull))
     .filter((item): item is NonNullable<typeof item> => item !== undefined)
 
@@ -211,21 +215,30 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
       { cwd: directory, signal, timeout: 30_000 },
     )
 
-    if (issues.code === 0) {
-      value.issues = jsonArray(issues.stdout).flatMap((item) => {
-        if (!item || typeof item !== "object") return []
-        const issue = item as { number?: unknown; title?: unknown; url?: unknown; updatedAt?: unknown }
-        if (typeof issue.number !== "number" || typeof issue.title !== "string" || typeof issue.url !== "string") return []
-        const updatedAt = typeof issue.updatedAt === "string" ? issue.updatedAt : undefined
-        return [
-          {
-            number: issue.number,
-            title: issue.title,
-            url: issue.url,
-            ...(updatedAt ? { updatedAt } : {}),
-          },
-        ]
-      })
+    if (issues.code !== 0) {
+      value.issuesError = commandError(issues, "GitHub issue list")
+    } else {
+      const rawIssues = parseJsonArray(issues.stdout)
+      if (!rawIssues) {
+        value.issuesError = "Could not read assigned issues."
+      } else {
+        value.issues = rawIssues.flatMap((item) => {
+          if (!item || typeof item !== "object") return []
+          const issue = item as { number?: unknown; title?: unknown; url?: unknown; updatedAt?: unknown }
+          if (typeof issue.number !== "number" || typeof issue.title !== "string" || typeof issue.url !== "string") {
+            return []
+          }
+          const updatedAt = typeof issue.updatedAt === "string" ? issue.updatedAt : undefined
+          return [
+            {
+              number: issue.number,
+              title: issue.title,
+              url: issue.url,
+              ...(updatedAt ? { updatedAt } : {}),
+            },
+          ]
+        })
+      }
     }
   }
 
@@ -246,7 +259,7 @@ async function createPull(
 
   const branchResult = await run("git", ["-C", input.directory, "rev-parse", "--abbrev-ref", "HEAD"], { signal })
   if (branchResult.code !== 0) {
-    return { ok: false, error: cleanError(branchResult.stderr, branchResult.stdout) }
+    return { ok: false, error: commandError(branchResult, "git rev-parse") }
   }
 
   const branch = branchResult.stdout.trim()
@@ -254,22 +267,35 @@ async function createPull(
     return { ok: false, error: "Cannot create a pull request from a detached HEAD." }
   }
 
+  if (branch.startsWith("-")) {
+    return { ok: false, error: "The current branch name cannot start with '-'." }
+  }
+
   const base = input.base?.trim() || (await baseBranch(input.directory, gh, signal))
   if (!base) return { ok: false, error: "Could not determine the base branch." }
+  if (base.startsWith("-")) return { ok: false, error: "The base branch name cannot start with '-'." }
+  if (base === branch) {
+    return { ok: false, error: "The head branch and base branch are the same. Switch to a feature branch first." }
+  }
 
   if (input.push === true) {
-    const push = await run("git", ["-C", input.directory, "push", "-u", "origin", branch], {
+    const push = await run("git", ["-C", input.directory, ...pushArgs(branch)], {
       signal,
       timeout: 120_000,
     })
-    if (push.code !== 0) return { ok: false, error: cleanError(push.stderr, push.stdout) }
+    if (push.code !== 0) return { ok: false, error: commandError(push, "git push") }
   }
 
-  const args = ["pr", "create", "--base", base, "--head", branch, "--title", title, "--body", input.body ?? ""]
-  if (input.draft === true) args.push("--draft")
+  const args = createPullArgs({
+    branch,
+    base,
+    title,
+    body: input.body ?? "",
+    draft: input.draft,
+  })
 
   const result = await run(gh, args, { cwd: input.directory, signal, timeout: 60_000 })
-  if (result.code !== 0) return { ok: false, error: cleanError(result.stderr, result.stdout) }
+  if (result.code !== 0) return { ok: false, error: commandError(result, "gh pr create") }
 
   clearDirectory(input.directory)
   const url = firstUrl(result.stdout) ?? firstUrl(result.stderr)
@@ -294,7 +320,7 @@ async function mergePull(
     timeout: 20_000,
   })
 
-  if (view.code !== 0) return { ok: false, error: cleanError(view.stderr, view.stdout) }
+  if (view.code !== 0) return { ok: false, error: commandError(view, "gh pr view") }
 
   let state: { state?: string; mergeable?: string; headRefName?: string } = {}
   try {
@@ -310,7 +336,7 @@ async function mergePull(
   if (input.deleteBranch === true) args.push("--delete-branch")
 
   const result = await run(gh, args, { cwd: input.directory, signal, timeout: 120_000 })
-  if (result.code !== 0) return { ok: false, error: cleanError(result.stderr, result.stdout) }
+  if (result.code !== 0) return { ok: false, error: commandError(result, "gh pr merge") }
 
   clearDirectory(input.directory)
   return { ok: true }

@@ -14,6 +14,7 @@ export interface RunResult {
   stdout: string
   stderr: string
   aborted: boolean
+  timedOut: boolean
   reason?: string
 }
 
@@ -39,8 +40,12 @@ export function run(command: string, args: readonly string[], options: RunOption
         },
       },
       (error, stdout, stderr) => {
-        const failure = error as { code?: number | string; name?: string } | null
+        const failure = error as
+          | { code?: number | string; name?: string; killed?: boolean; signal?: string }
+          | null
         const reason = typeof failure?.code === "string" ? failure.code : undefined
+        const aborted = failure?.name === "AbortError" || options.signal?.aborted === true
+        const timedOut = !aborted && failure?.killed === true && failure?.signal === "SIGTERM"
 
         resolve({
           code:
@@ -53,7 +58,8 @@ export function run(command: string, args: readonly string[], options: RunOption
                   : 0,
           stdout: String(stdout ?? ""),
           stderr: String(stderr ?? ""),
-          aborted: failure?.name === "AbortError" || options.signal?.aborted === true,
+          aborted,
+          timedOut,
           reason,
         })
       },
@@ -88,6 +94,12 @@ export function cleanError(stderr: string, stdout: string): string {
   if (!value) return "The command failed without output."
 
   return value.length > 2_000 ? `${value.slice(0, 2_000)}…` : value
+}
+
+export function commandError(result: RunResult, label: string): string {
+  if (result.aborted) return "Cancelled."
+  if (result.timedOut) return `${label} timed out.`
+  return cleanError(result.stderr, result.stdout)
 }
 
 export function firstUrl(value: string): string | undefined {

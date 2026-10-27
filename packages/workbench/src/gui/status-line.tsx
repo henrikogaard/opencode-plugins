@@ -4,15 +4,19 @@ import type { definition } from "./definition"
 import { basename, relativeTime } from "./format"
 import { checksIcon, checksTone, toneClass } from "./icons"
 import { contextInfo } from "./metrics"
-import type { WorkbenchState } from "./state"
+import { isLocalSession, type WorkbenchState } from "./state"
 
 export function StatusLine(props: { state: WorkbenchState }) {
   const ctx = usePlugin<typeof definition>()
   const ui = ctx.ui
   const session = () => ctx.sessions.current()
   const directory = () => session()?.directory
+  const local = () => isLocalSession(session())
 
-  createKeyed(directory, (dir) => props.state.watch(dir))
+  createKeyed(
+    () => (local() ? directory() : undefined),
+    (dir) => props.state.watch(dir),
+  )
 
   const snapshot = createMemo(() => props.state.snapshot(directory()))
   const branch = () => {
@@ -56,22 +60,33 @@ export function StatusLine(props: { state: WorkbenchState }) {
   return (
     <Show when={session()}>
       {(current) => (
-        <div class="wb-status" data-workbench="status-line">
-          <button
-            type="button"
-            class="wb-status-main"
-            title={ctx.t("status.open")}
-            onClick={() => props.state.openPanel(current())}
-          >
-            <span class="wb-status-item">
-              <ui.Icon name="folder" size="small" />
-              <span class="truncate">{project()}</span>
-            </span>
-            <span class="wb-status-sep" />
-            <span class="wb-status-item">
-              <ui.Icon name="branch" size="small" />
-              <span class="truncate">{branch() ?? "HEAD"}</span>
-            </span>
+        <Show
+          when={local()}
+          fallback={
+            <div class="wb-status" data-workbench="status-line">
+              <span class="wb-status-item wb-warn">
+                <ui.Icon name="warning" size="small" />
+                {ctx.t("status.remote")}
+              </span>
+            </div>
+          }
+        >
+          <div class="wb-status" data-workbench="status-line">
+            <button
+              type="button"
+              class="wb-status-main"
+              title={ctx.t("status.open")}
+              onClick={() => props.state.openPanel(current())}
+            >
+              <span class="wb-status-item wb-status-grow">
+                <ui.Icon name="folder" size="small" />
+                <span class="truncate">{project()}</span>
+              </span>
+              <span class="wb-status-sep" />
+              <span class="wb-status-item wb-status-grow">
+                <ui.Icon name="branch" size="small" />
+                <span class="truncate">{branch() ?? "HEAD"}</span>
+              </span>
             <Show when={pull()}>
               {(value) => (
                 <span class={`wb-status-item ${toneClass(checksTone(value().checks))}`}>
@@ -149,7 +164,8 @@ export function StatusLine(props: { state: WorkbenchState }) {
               />
             </ui.Tooltip>
           </div>
-        </div>
+          </div>
+        </Show>
       )}
     </Show>
   )

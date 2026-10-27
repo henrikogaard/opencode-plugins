@@ -79,6 +79,17 @@ export default Plugin.define({
       }),
     )
 
+    const canCreatePull = () => {
+      const session = ctx.sessions.current()
+      if (!session || !session.server.builtin) return false
+
+      const snapshot = state.current()
+      if (!snapshot?.auth) return false
+      if (snapshot.directory !== session.directory) return false
+
+      return !snapshot.base || snapshot.branch !== snapshot.base
+    }
+
     ctx.add(
       Command,
       (): Command => ({
@@ -86,7 +97,7 @@ export default Plugin.define({
         title: ctx.t("command.refresh"),
         group: ctx.t("command.category"),
         section: "general",
-        enabled: prefs.value.enabled && !!ctx.sessions.current(),
+        enabled: prefs.value.enabled && !!ctx.sessions.current()?.server.builtin,
         run: () => {
           const directory = ctx.sessions.current()?.directory
           if (directory) void state.refresh(directory, true)
@@ -102,10 +113,15 @@ export default Plugin.define({
         group: ctx.t("command.category"),
         section: "general",
         slash: { name: "pr", after: "open" },
-        enabled: prefs.value.enabled && !!ctx.sessions.current() && !!state.current()?.auth,
+        enabled: prefs.value.enabled && canCreatePull(),
         run: () => {
           const session = ctx.sessions.current()
-          if (session) openCreatePull(ctx, state, session, state.snapshot(session.directory))
+          if (!session?.server.builtin) return
+
+          const snapshot = state.current()
+          if (snapshot?.base && snapshot.branch === snapshot.base) return
+
+          openCreatePull(ctx, state, session, snapshot)
         },
       }),
     )

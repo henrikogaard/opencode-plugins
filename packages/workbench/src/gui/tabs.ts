@@ -51,7 +51,7 @@ export function installAutoGroup(ctx: SetupContext<typeof definition>): void {
 
   createEffect(() => {
     const prefs = ctx.stores.prefs
-    if (!prefs.value.autoGroup) {
+    if (!prefs.value.enabled || !prefs.value.autoGroup) {
       lastSignature = ""
       return
     }

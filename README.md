@@ -60,7 +60,7 @@ All commands are published in **Settings → Shortcuts**, so you can assign your
 ## Settings
 
 - **General** — enable Workbench, status line, panel, PR pill.
-- **GitHub** — `gh` path, all open PRs vs ten, assigned issues, refresh interval, default merge method, delete-branch default.
+- **GitHub** — `gh` path, up to 50 open PRs vs ten, assigned issues, refresh interval, default merge method, delete-branch default.
 - **Panel** — pull requests, subagents, changes, background tasks, connectors, context usage.
 - **Tabs** — auto-group tabs by project, sort now.
 - **Appearance** — Claude skin.
@@ -93,6 +93,8 @@ The server part was also exercised end-to-end through a local `opencode serve` 2
 - The GUI plugin API is experimental. Pin `@opencode/plugin@2.2.0` to OpenCode 2.2.
 - The Claude skin uses internal `--v2-*` tokens and `data-component` attributes. It is opt-in for that reason; disable it if an app update breaks it.
 - The Environment panel is a session side-panel tab, not a permanent third column. The status line is the always-visible surface.
+- Workbench is restricted to the desktop app's local server. A session on a remote server shows **Local only** and no PR data; its repository is not the same checkout as the local path.
+- The PR list loads at most 50 open pull requests, GitHub's page limit. The setting is labeled accordingly; it is not a complete inventory for very large repositories.
 - Sorting applies to open shell tabs (the vertical rail in side-tabs mode), not to the experimental Inbox list.
 - The Inbox and vertical-tab switch needs the upstream command described in `docs/upstream-interface-command.md`. Until then the commands open Settings → General.
 - Create/merge were not exercised against a live repository during development, to avoid changing remote state. The read path was smoke-tested on real repositories.

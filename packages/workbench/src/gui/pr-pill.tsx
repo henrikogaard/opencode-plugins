@@ -9,6 +9,7 @@ export function createPullPill(ctx: SetupContext<typeof definition>, state: Work
     id: "pulls",
     order: 20,
     show: (input) => {
+      if (!input.session.server.builtin) return undefined
       if (!ctx.stores.prefs.value.pill) return undefined
 
       const session: MountedSession = input.session

@@ -43,6 +43,7 @@ export interface Snapshot {
   issues: Issue[]
   at: number
   error?: string
+  issuesError?: string
 }
 
 export interface SnapshotInput {
@@ -129,6 +130,7 @@ const SnapshotSchema = {
     issues: { type: "array", items: IssueSchema },
     at: { type: "number" },
     error: { type: "string" },
+    issuesError: { type: "string" },
   },
   required: [
     "directory",
