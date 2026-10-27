@@ -13,13 +13,13 @@ export default Plugin.define({
       createPull: async (input, call) => {
         const value = input as CreatePullInput
         const result = await github.createPull(value, call.signal)
-        if (result.ok) await emit(value.directory)
+        if (result.ok) await emit(value.directory).catch(() => {})
         return result
       },
       mergePull: async (input, call) => {
         const value = input as MergePullInput
         const result = await github.mergePull(value, call.signal)
-        if (result.ok) await emit(value.directory)
+        if (result.ok) await emit(value.directory).catch(() => {})
         return result
       },
     })

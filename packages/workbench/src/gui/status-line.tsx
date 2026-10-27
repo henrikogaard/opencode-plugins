@@ -29,6 +29,7 @@ export function StatusLine(props: { state: WorkbenchState }) {
     return current?.listedProject?.name ?? (current ? basename(current.directory) : undefined)
   }
   const pull = () => snapshot()?.current
+  const otherPulls = () => (pull() ? 0 : (snapshot()?.prs.length ?? 0))
   const dirty = () => snapshot()?.dirty ?? 0
   const tasks = () => session()?.background.length ?? 0
   const context = createMemo(() => {
@@ -65,6 +66,12 @@ export function StatusLine(props: { state: WorkbenchState }) {
                   <span>PR #{value().number}</span>
                 </span>
               )}
+            </Show>
+            <Show when={otherPulls() > 0}>
+              <span class="wb-status-item">
+                <ui.Icon name="github" size="small" />
+                <span>{otherPulls()} PRs</span>
+              </span>
             </Show>
             <Show when={dirty() > 0}>
               <span class="wb-status-sep" />

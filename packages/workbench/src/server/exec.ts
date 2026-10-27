@@ -33,6 +33,7 @@ export function run(command: string, args: readonly string[], options: RunOption
           ...options.env,
           GH_PROMPT_DISABLED: "1",
           GH_NO_UPDATE_NOTIFIER: "1",
+          GIT_TERMINAL_PROMPT: "0",
           NO_COLOR: "1",
           CLICOLOR: "0",
         },

@@ -10,6 +10,6 @@
     "dev": "cd packages/workbench && bun run dev",
     "typecheck": "cd packages/workbench && bun run typecheck",
     "test": "cd packages/workbench && bun test",
-    "smoke": "cd packages/workbench && bun run smoke"
+    "smoke": "cd packages/workbench && bun run scripts/smoke.ts"
   }
 }

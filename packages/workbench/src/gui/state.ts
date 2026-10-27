@@ -124,7 +124,7 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
 
   createEffect(
     on(
-      () => `${prefs.value.ghPath}\0${prefs.value.includeAll}\0${prefs.value.issues}`,
+      () => `${prefs.value.includeAll}\0${prefs.value.issues}`,
       () => {
         for (const directory of watched.keys()) void load(directory, true)
       },

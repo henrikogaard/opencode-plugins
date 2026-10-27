@@ -70,6 +70,7 @@ export function WorkbenchSettings(props: { state: WorkbenchState }) {
           placeholder="gh"
           value={prefs.value.ghPath}
           onInput={(value) => prefs.update((draft) => void (draft.ghPath = value))}
+          onSubmit={() => props.state.refreshAll()}
         />
         <div class="wb-settings-description">{ctx.t("settings.ghPath.description")}</div>
 
