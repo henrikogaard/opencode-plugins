@@ -85,6 +85,8 @@ bun run smoke /Users/henrik/Dev/Repos/rista
 
 The smoke script calls the server resolver directly and prints the snapshot. It is read-only.
 
+The server part was also exercised end-to-end through a local `opencode serve` 2.2.0 instance and `client.rpc(Workbench).snapshot(...)` on a real repository. The desktop GUI bundle itself has not yet been loaded from this repository into a running app.
+
 ## Known limits
 
 - The GUI plugin API is experimental. Pin `@opencode/plugin@2.2.0` to OpenCode 2.2.
