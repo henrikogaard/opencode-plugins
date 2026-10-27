@@ -78,7 +78,9 @@ All commands are published in **Settings → Shortcuts**, so you can assign your
 - Creating a PR can push the branch first; the dialog exposes that as a switch.
 - Merging requires a confirmation dialog, a merge method, and optionally deletes the branch.
 - If `gh` is missing or not signed in, the panel shows the reason and offers the relevant action. It never silently falls back.
-- Reads are cached for 20 seconds; `gh auth status` is cached for 60 seconds.
+- Reads are cached for 20 seconds; `gh auth status` is cached for 60 seconds. Failed, aborted and timed-out reads are not cached, and failed auth checks are not cached.
+- A successful push invalidates the snapshot immediately, even when PR creation then fails.
+- Subagent trees are loaded recursively through `syncFamily`, so nested subagents are included in both the panel and the status line.
 
 ## Development checks
 

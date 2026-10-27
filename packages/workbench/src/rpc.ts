@@ -77,6 +77,7 @@ export interface MutationOutput {
   ok: boolean
   url?: string
   error?: string
+  pushed?: boolean
 }
 
 const PullRequestSchema = {
@@ -196,6 +197,7 @@ const MutationOutputSchema = {
     ok: { type: "boolean" },
     url: { type: "string" },
     error: { type: "string" },
+    pushed: { type: "boolean" },
   },
   required: ["ok"],
   additionalProperties: false,

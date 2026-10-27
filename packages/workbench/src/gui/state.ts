@@ -199,7 +199,7 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
       { location: { directory: session.directory } },
     )) as MutationOutput
 
-    if (result.ok) await load(session.directory, true)
+    if (result.ok || result.pushed) await load(session.directory, true)
     return result
   }
 
@@ -215,7 +215,7 @@ export function createWorkbench(ctx: SetupContext<typeof definition>): Workbench
       { location: { directory: session.directory } },
     )) as MutationOutput
 
-    if (result.ok) await load(session.directory, true)
+    if (result.ok || result.pushed) await load(session.directory, true)
     return result
   }
 

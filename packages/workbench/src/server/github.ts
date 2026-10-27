@@ -1,4 +1,4 @@
-import type { CreatePullInput, MergePullInput, Snapshot, SnapshotInput } from "../rpc"
+import type { CreatePullInput, MergePullInput, MutationOutput, Snapshot, SnapshotInput } from "../rpc"
 import { commandError, findGh, firstUrl, run } from "./exec"
 import { createPullArgs, pushArgs } from "./args"
 import {
@@ -16,17 +16,32 @@ const AUTH_TTL = 60_000
 const snapshots = new Map<string, { at: number; value: Snapshot }>()
 const authChecks = new Map<string, { at: number; value: { auth: boolean; error?: string } }>()
 
-export interface Github {
-  snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snapshot>
-  createPull(input: CreatePullInput, signal: AbortSignal): Promise<{ ok: boolean; url?: string; error?: string }>
-  mergePull(input: MergePullInput, signal: AbortSignal): Promise<{ ok: boolean; error?: string }>
+/** Test hook: clear process-local snapshot and auth caches. */
+export function clearCaches(): void {
+  snapshots.clear()
+  authChecks.clear()
 }
 
-export function createGithub(): Github {
+export interface Github {
+  snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snapshot>
+  createPull(input: CreatePullInput, signal: AbortSignal): Promise<MutationOutput>
+  mergePull(input: MergePullInput, signal: AbortSignal): Promise<MutationOutput>
+}
+
+interface Deps {
+  run: typeof run
+  findGh: typeof findGh
+}
+
+const defaultDeps: Deps = { run, findGh }
+
+export function createGithub(options: Partial<Deps> = {}): Github {
+  const deps: Deps = { ...defaultDeps, ...options }
+
   return {
-    snapshot,
-    createPull,
-    mergePull,
+    snapshot: (input, signal) => snapshot(input, signal, deps),
+    createPull: (input, signal) => createPull(input, signal, deps),
+    mergePull: (input, signal) => mergePull(input, signal, deps),
   }
 }
 
@@ -74,11 +89,11 @@ export function parseJsonArray(value: string): unknown[] | undefined {
   }
 }
 
-async function checkAuth(gh: string, signal: AbortSignal): Promise<{ auth: boolean; error?: string }> {
+async function checkAuth(deps: Deps, gh: string, signal: AbortSignal): Promise<{ auth: boolean; error?: string }> {
   const hit = authChecks.get(gh)
   if (hit && Date.now() - hit.at < AUTH_TTL) return hit.value
 
-  const result = await run(gh, ["auth", "status", "--hostname", "github.com"], { signal, timeout: 10_000 })
+  const result = await deps.run(gh, ["auth", "status", "--hostname", "github.com"], { signal, timeout: 10_000 })
 
   if (result.aborted) return { auth: false, error: "Cancelled." }
   if (result.timedOut) return { auth: false, error: "GitHub CLI timed out." }
@@ -98,14 +113,14 @@ async function checkAuth(gh: string, signal: AbortSignal): Promise<{ auth: boole
   }
 }
 
-async function baseBranch(directory: string, gh: string, signal: AbortSignal): Promise<string | undefined> {
-  const head = await run("git", ["-C", directory, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], { signal })
+async function baseBranch(deps: Deps, directory: string, gh: string, signal: AbortSignal): Promise<string | undefined> {
+  const head = await deps.run("git", ["-C", directory, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], { signal })
   if (head.code === 0) {
     const value = head.stdout.trim()
     return value.startsWith("origin/") ? value.slice("origin/".length) : value
   }
 
-  const repo = await run(gh, ["repo", "view", "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"], {
+  const repo = await deps.run(gh, ["repo", "view", "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"], {
     cwd: directory,
     signal,
     timeout: 15_000,
@@ -115,7 +130,7 @@ async function baseBranch(directory: string, gh: string, signal: AbortSignal): P
   return undefined
 }
 
-async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snapshot> {
+async function snapshot(input: SnapshotInput, signal: AbortSignal, deps: Deps): Promise<Snapshot> {
   const key = cacheKey(input)
   if (!input.refresh) {
     const hit = snapshots.get(key)
@@ -123,13 +138,13 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
   }
 
   const directory = input.directory
-  const gh = await findGh(input.ghPath)
+  const gh = await deps.findGh(input.ghPath)
 
   const [status, numstat, remote, originHead] = await Promise.all([
-    run("git", ["-C", directory, "status", "--porcelain=v2", "--branch"], { signal }),
-    run("git", ["-C", directory, "diff", "HEAD", "--numstat"], { signal }),
-    run("git", ["-C", directory, "remote", "get-url", "origin"], { signal }),
-    run("git", ["-C", directory, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], { signal }),
+    deps.run("git", ["-C", directory, "status", "--porcelain=v2", "--branch"], { signal }),
+    deps.run("git", ["-C", directory, "diff", "HEAD", "--numstat"], { signal }),
+    deps.run("git", ["-C", directory, "remote", "get-url", "origin"], { signal }),
+    deps.run("git", ["-C", directory, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], { signal }),
   ])
 
   if (status.code !== 0) {
@@ -174,7 +189,7 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
     return value
   }
 
-  const auth = await checkAuth(gh, signal)
+  const auth = await checkAuth(deps, gh, signal)
   value.auth = auth.auth
 
   if (!auth.auth) {
@@ -184,7 +199,7 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
 
   const fields =
     "number,title,url,state,isDraft,headRefName,baseRefName,author,reviewDecision,mergeable,statusCheckRollup,updatedAt"
-  const pulls = await run(
+  const pulls = await deps.run(
     gh,
     ["pr", "list", "--state", "open", "--limit", input.includeAll ? "50" : "10", "--json", fields],
     { cwd: directory, signal, timeout: 30_000 },
@@ -209,7 +224,7 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
   if (current) value.current = current
 
   if (input.includeIssues) {
-    const issues = await run(
+    const issues = await deps.run(
       gh,
       ["issue", "list", "--assignee", "@me", "--state", "open", "--limit", "10", "--json", "number,title,url,updatedAt"],
       { cwd: directory, signal, timeout: 30_000 },
@@ -242,6 +257,8 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
     }
   }
 
+  if (signal.aborted || value.issuesError) return value
+
   snapshots.set(key, { at: Date.now(), value })
   return value
 }
@@ -249,15 +266,16 @@ async function snapshot(input: SnapshotInput, signal: AbortSignal): Promise<Snap
 async function createPull(
   input: CreatePullInput,
   signal: AbortSignal,
-): Promise<{ ok: boolean; url?: string; error?: string }> {
+  deps: Deps,
+): Promise<{ ok: boolean; url?: string; error?: string; pushed?: boolean }> {
   const title = input.title.trim()
   if (!title) return { ok: false, error: "A pull request title is required." }
 
-  const gh = await findGh(input.ghPath)
-  const auth = await checkAuth(gh, signal)
+  const gh = await deps.findGh(input.ghPath)
+  const auth = await checkAuth(deps, gh, signal)
   if (!auth.auth) return { ok: false, error: auth.error }
 
-  const branchResult = await run("git", ["-C", input.directory, "rev-parse", "--abbrev-ref", "HEAD"], { signal })
+  const branchResult = await deps.run("git", ["-C", input.directory, "rev-parse", "--abbrev-ref", "HEAD"], { signal })
   if (branchResult.code !== 0) {
     return { ok: false, error: commandError(branchResult, "git rev-parse") }
   }
@@ -271,19 +289,24 @@ async function createPull(
     return { ok: false, error: "The current branch name cannot start with '-'." }
   }
 
-  const base = input.base?.trim() || (await baseBranch(input.directory, gh, signal))
+  const base = input.base?.trim() || (await baseBranch(deps, input.directory, gh, signal))
   if (!base) return { ok: false, error: "Could not determine the base branch." }
   if (base.startsWith("-")) return { ok: false, error: "The base branch name cannot start with '-'." }
   if (base === branch) {
     return { ok: false, error: "The head branch and base branch are the same. Switch to a feature branch first." }
   }
 
+  let pushed = false
+
   if (input.push === true) {
-    const push = await run("git", ["-C", input.directory, ...pushArgs(branch)], {
+    const push = await deps.run("git", ["-C", input.directory, ...pushArgs(branch)], {
       signal,
       timeout: 120_000,
     })
     if (push.code !== 0) return { ok: false, error: commandError(push, "git push") }
+
+    pushed = true
+    clearDirectory(input.directory)
   }
 
   const args = createPullArgs({
@@ -294,27 +317,30 @@ async function createPull(
     draft: input.draft,
   })
 
-  const result = await run(gh, args, { cwd: input.directory, signal, timeout: 60_000 })
-  if (result.code !== 0) return { ok: false, error: commandError(result, "gh pr create") }
+  const result = await deps.run(gh, args, { cwd: input.directory, signal, timeout: 60_000 })
+  if (result.code !== 0) {
+    return { ok: false, error: commandError(result, "gh pr create"), ...(pushed ? { pushed } : {}) }
+  }
 
   clearDirectory(input.directory)
   const url = firstUrl(result.stdout) ?? firstUrl(result.stderr)
-  return { ok: true, ...(url ? { url } : {}) }
+  return { ok: true, ...(url ? { url } : {}), ...(pushed ? { pushed } : {}) }
 }
 
 async function mergePull(
   input: MergePullInput,
   signal: AbortSignal,
-): Promise<{ ok: boolean; error?: string }> {
+  deps: Deps,
+): Promise<MutationOutput> {
   if (!Number.isInteger(input.number) || input.number <= 0) {
     return { ok: false, error: "Invalid pull request number." }
   }
 
-  const gh = await findGh(input.ghPath)
-  const auth = await checkAuth(gh, signal)
+  const gh = await deps.findGh(input.ghPath)
+  const auth = await checkAuth(deps, gh, signal)
   if (!auth.auth) return { ok: false, error: auth.error }
 
-  const view = await run(gh, ["pr", "view", String(input.number), "--json", "state,mergeable,headRefName"], {
+  const view = await deps.run(gh, ["pr", "view", String(input.number), "--json", "state,mergeable,headRefName"], {
     cwd: input.directory,
     signal,
     timeout: 20_000,
@@ -335,7 +361,7 @@ async function mergePull(
   const args = ["pr", "merge", String(input.number), `--${input.method}`]
   if (input.deleteBranch === true) args.push("--delete-branch")
 
-  const result = await run(gh, args, { cwd: input.directory, signal, timeout: 120_000 })
+  const result = await deps.run(gh, args, { cwd: input.directory, signal, timeout: 120_000 })
   if (result.code !== 0) return { ok: false, error: commandError(result, "gh pr merge") }
 
   clearDirectory(input.directory)

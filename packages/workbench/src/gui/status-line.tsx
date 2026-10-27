@@ -1,7 +1,8 @@
-import { Show, createMemo } from "solid-js"
+import { Show, createEffect, createMemo } from "solid-js"
 import { createKeyed, usePlugin } from "@opencode/plugin/gui"
 import type { definition } from "./definition"
 import { basename, relativeTime } from "./format"
+import { syncFamily } from "../shared/family"
 import { checksIcon, checksTone, toneClass } from "./icons"
 import { contextInfo } from "./metrics"
 import { isLocalSession, type WorkbenchState } from "./state"
@@ -54,6 +55,19 @@ export function StatusLine(props: { state: WorkbenchState }) {
     return current ? contextInfo(current, ctx.screen.current()?.composer.model()) : undefined
   })
   const error = () => props.state.error(directory()) ?? snapshot()?.error
+
+  createEffect(() => {
+    if (!local()) return
+
+    const current = session()
+    if (!current) return
+
+    const data = current.server.data
+    const root = data.session.root(current.id)
+    if (!root) return
+
+    void syncFamily(data, root).catch(() => {})
+  })
   const loading = () => props.state.loading(directory())
   const updated = () => relativeTime(snapshot()?.at)
 

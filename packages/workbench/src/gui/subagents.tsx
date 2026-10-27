@@ -6,9 +6,10 @@ import {
   formatDuration,
   formatTokens,
   type SubagentRow,
-  type SubagentSession,
   type SubagentState,
 } from "../shared/subagents"
+import { syncFamily } from "../shared/family"
+import { readSubagentSessions } from "./subagents-model"
 
 export function SubagentsSection(props: { session: MountedSession }) {
   const ctx = usePlugin<typeof definition>()
@@ -17,42 +18,7 @@ export function SubagentsSection(props: { session: MountedSession }) {
   const rootID = () => data().session.root(props.session.id)
   const [now, setNow] = createSignal(Date.now())
 
-  const sessions = createMemo<SubagentSession[]>(() => {
-    const result: SubagentSession[] = []
-
-    for (const id of data().session.family(rootID())) {
-      const info = data().session.get(id)
-      if (!info) continue
-
-      const permissions = data().session.permission.list(id)
-      const forms = data().session.form.list(id, info.location)
-      const waiting = permissions.length > 0 ? "approval" : forms && forms.length > 0 ? "input" : undefined
-
-      result.push({
-        id: info.id,
-        parentID: info.parentID,
-        title: info.title,
-        agent: info.agent ? String(info.agent) : undefined,
-        model: info.model ? [info.model.providerID, info.model.id].filter(Boolean).join("/") : undefined,
-        cost: info.cost,
-        tokens:
-          info.tokens.input +
-          info.tokens.output +
-          info.tokens.reasoning +
-          info.tokens.cache.read +
-          info.tokens.cache.write,
-        status: data().session.status(id),
-        outcome: info.outcome,
-        waiting,
-        created: info.time.created,
-        updated: info.time.updated,
-        idle: info.time.idle,
-        current: id === props.session.id,
-      })
-    }
-
-    return result
-  })
+  const sessions = createMemo(() => readSubagentSessions(data(), rootID(), props.session.id))
 
   const rows = createMemo(() => buildSubagentRows(rootID(), sessions()))
   const active = createMemo(
@@ -62,7 +28,7 @@ export function SubagentsSection(props: { session: MountedSession }) {
   createEffect(() => {
     const id = rootID()
     if (!id) return
-    void data().session.sync(id, { children: true }).catch(() => {})
+    void syncFamily(data(), id).catch(() => {})
   })
 
   createEffect(() => {
