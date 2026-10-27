@@ -7,7 +7,8 @@ It is a local plugin package: one server part for `gh`/Git data, one GUI part fo
 ## What it adds
 
 - A `window.bottom` status line with project, branch, current PR, changed files, background tasks, context use and a refresh action.
-- A pinned **Environment** tab in the session side panel: workspace, pull requests, assigned issues, working-tree changes, background tasks, MCP connectors and context usage.
+- A pinned **Environment** tab in the session side panel: workspace, pull requests, assigned issues, working-tree changes, a live subagent tree, background tasks, MCP connectors and context usage.
+- A **Subagents** section that walks the session family depth-first: title, agent, model, elapsed time, tokens, cost, running/approval/input/failed state, and a click to open the subagent. The status line shows the running/total count.
 - A PR pill above the composer, with one row per open pull request.
 - Pull request creation and merge, each behind a confirmation dialog.
 - A `Sort tabs by project` command, plus optional auto-grouping.
@@ -60,7 +61,7 @@ All commands are published in **Settings → Shortcuts**, so you can assign your
 
 - **General** — enable Workbench, status line, panel, PR pill.
 - **GitHub** — `gh` path, all open PRs vs ten, assigned issues, refresh interval, default merge method, delete-branch default.
-- **Panel** — pull requests, changes, background tasks, connectors, context usage.
+- **Panel** — pull requests, subagents, changes, background tasks, connectors, context usage.
 - **Tabs** — auto-group tabs by project, sort now.
 - **Appearance** — Claude skin.
 - **Actions** — open the panel, refresh all watched directories.
