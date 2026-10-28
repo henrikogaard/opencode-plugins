@@ -10,6 +10,9 @@ import {
 } from "@opencode/plugin/gui"
 import styles from "./gui/styles.css?inline"
 import skin from "./gui/skin.css?inline"
+import ambientStyles from "./gui/ambient.css?inline"
+import { installAmbient } from "./gui/ambient"
+import { AMBIENT_MODES, type AmbientMode } from "./shared/ambient"
 import { definition } from "./gui/definition"
 import { EnvironmentView } from "./gui/environment"
 import { createPullPill } from "./gui/pr-pill"
@@ -27,6 +30,9 @@ export default Plugin.define({
 
     ctx.add(Style, styles)
     ctx.add(Style, skin)
+    ctx.add(Style, ambientStyles)
+
+    installAmbient(ctx)
 
     const status: Slot = {
       at: "window.bottom",
@@ -223,6 +229,25 @@ export default Plugin.define({
         section: "general",
         enabled: true,
         run: () => state.openSettings(),
+      }),
+    )
+
+    ctx.add(
+      Command,
+      (): Command => ({
+        id: "ambient",
+        title: ctx.t("command.ambient"),
+        group: ctx.t("command.category"),
+        section: "general",
+        slash: { name: "ambient" },
+        enabled: true,
+        run: () => {
+          const current = prefs.value.ambient as AmbientMode
+          const next = AMBIENT_MODES[(AMBIENT_MODES.indexOf(current) + 1) % AMBIENT_MODES.length] ?? "off"
+
+          prefs.update((draft) => void (draft.ambient = next))
+          ctx.toast.show({ title: `${ctx.t("command.ambient")}: ${next}` })
+        },
       }),
     )
 

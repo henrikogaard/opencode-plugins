@@ -14,8 +14,9 @@ It is a local plugin package: one server part for `gh`/Git data, one GUI part fo
 - A `Sort tabs by project` command, plus optional auto-grouping.
 - A command to switch interface mode, wired to upstream `view.inbox` / `view.tabs` when present.
 - An optional Claude-style token skin: warm near-black surfaces, clay accent, monospace UI, flatter borders.
+- An optional ambient background layer: ordered dithering, coarse pixels, an ASCII field, or a drifting image, cycled with the `workbench.ambient` command or configured in settings. The base surface becomes translucent while it runs; reduce-motion disables it.
 
-The ambient background (image, dither, ASCII, pixelation) is deliberately not in this first build. It needs a separate surface-transparency spike.
+The ambient background ships now: dither, ASCII, pixel and image modes, each slow and low-contrast by default.
 
 ## Install
 
@@ -58,6 +59,7 @@ bun run dev
 | `workbench.tabs` | — | Calls upstream `view.tabs` if installed, else opens Settings → General |
 | `workbench.interface` | — | Calls upstream `view.interfaceMode` if installed, else opens Settings → General |
 | `workbench.skin` | — | Toggles the Claude token skin |
+| `workbench.ambient` | — | Cycles the ambient background: off → dither → ascii → pixel → image |
 | `workbench.settings` | — | Opens the Workbench settings page |
 
 All commands are published in **Settings → Shortcuts**, so you can assign your own keys.
@@ -68,7 +70,7 @@ All commands are published in **Settings → Shortcuts**, so you can assign your
 - **GitHub** — `gh` path, up to 50 open PRs vs ten, assigned issues, refresh interval, default merge method, delete-branch default.
 - **Panel** — pull requests, subagents, changes, background tasks, connectors, context usage.
 - **Tabs** — auto-group tabs by project, sort now.
-- **Appearance** — Claude skin.
+- **Appearance** — Claude skin, ambient background (mode, intensity, speed, image), plus the cycle command.
 - **Actions** — open the panel, refresh all watched directories.
 
 ## GitHub behaviour
@@ -99,6 +101,7 @@ The server part was also exercised end-to-end through a local `opencode serve` 2
 
 - The GUI plugin API is experimental. Pin `@opencode/plugin@2.2.0` to OpenCode 2.2.
 - The Claude skin uses internal `--v2-*` tokens and `data-component` attributes. It is opt-in for that reason; disable it if an app update breaks it.
+- While an ambient mode is on, the base surface is made translucent using an approximation of the theme's base color. Custom themes may shift slightly; the skin's own base color is preserved when both are active.
 - The Environment panel is a session side-panel tab, not a permanent third column. The status line is the always-visible surface.
 - Workbench is restricted to the desktop app's local server. A session on a remote server shows **Local only** and no PR data; its repository is not the same checkout as the local path.
 - The PR list loads at most 50 open pull requests, GitHub's page limit. The setting is labeled accordingly; it is not a complete inventory for very large repositories.

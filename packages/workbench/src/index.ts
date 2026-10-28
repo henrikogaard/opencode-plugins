@@ -1,6 +1,13 @@
 import { Plugin } from "@opencode/plugin"
-import { Workbench, type CreatePullInput, type MergePullInput, type SnapshotInput } from "./rpc"
+import {
+  Workbench,
+  type CreatePullInput,
+  type MergePullInput,
+  type ReadImageInput,
+  type SnapshotInput,
+} from "./rpc"
 import { createGithub } from "./server/github"
+import { readImage } from "./server/image"
 
 export default Plugin.define({
   id: "workbench",
@@ -22,6 +29,7 @@ export default Plugin.define({
         if (result.ok || result.pushed) await emit(value.directory).catch(() => {})
         return result
       },
+      readImage: async (input) => readImage((input as ReadImageInput).path),
     })
 
     emit = (directory) => registration.events.emit("refreshed", { directory })

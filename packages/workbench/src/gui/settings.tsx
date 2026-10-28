@@ -1,6 +1,7 @@
-import { Show } from "solid-js"
+import { For, Show } from "solid-js"
 import type { JSX } from "solid-js"
 import { usePlugin } from "@opencode/plugin/gui"
+import { AMBIENT_MODES } from "../shared/ambient"
 import type { definition } from "./definition"
 import type { WorkbenchState } from "./state"
 
@@ -31,6 +32,16 @@ export function WorkbenchSettings(props: { state: WorkbenchState }) {
       title: count > 0 ? ctx.t("command.sorted") : ctx.t("command.sortNothing"),
       description: count > 0 ? ctx.t("command.sorted.description", { count }) : ctx.t("command.sortNothing.description"),
     })
+  }
+
+  const pickImage = async () => {
+    const paths = await ctx.desktop?.pick({
+      extensions: ["png", "jpg", "jpeg", "webp", "gif"],
+      title: ctx.t("settings.ambientImage.pick"),
+    })
+    const path = paths?.[0]
+
+    if (path) prefs.update((draft) => void (draft.ambientImage = path))
   }
 
   return (
@@ -213,6 +224,82 @@ export function WorkbenchSettings(props: { state: WorkbenchState }) {
           label={ctx.t("settings.skin")}
           description={ctx.t("settings.skin.description")}
           control={<ui.Switch label={ctx.t("settings.skin")} hideLabel checked={prefs.value.skin} onChange={setSkin} />}
+        />
+
+        <Row
+          label={ctx.t("settings.ambient")}
+          description={ctx.t("settings.ambient.description")}
+          control={
+            <select
+              class="wb-select"
+              value={prefs.value.ambient}
+              onChange={(event) =>
+                prefs.update(
+                  (draft) => void (draft.ambient = event.currentTarget.value as (typeof AMBIENT_MODES)[number]),
+                )
+              }
+            >
+              <For each={[...AMBIENT_MODES]}>
+                {(mode) => <option value={mode}>{mode}</option>}
+              </For>
+            </select>
+          }
+        />
+
+        <Row
+          label={ctx.t("settings.ambientIntensity")}
+          control={
+            <input
+              type="range"
+              class="wb-range"
+              min="0"
+              max="40"
+              value={String(prefs.value.ambientIntensity)}
+              onInput={(event) =>
+                prefs.update((draft) => void (draft.ambientIntensity = Number(event.currentTarget.value)))
+              }
+            />
+          }
+        />
+
+        <Row
+          label={ctx.t("settings.ambientSpeed")}
+          control={
+            <select
+              class="wb-select"
+              value={String(prefs.value.ambientSpeed)}
+              onChange={(event) =>
+                prefs.update((draft) => void (draft.ambientSpeed = Number(event.currentTarget.value)))
+              }
+            >
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="5">5</option>
+              <option value="8">8</option>
+            </select>
+          }
+        />
+
+        <Row
+          label={ctx.t("settings.ambientImage")}
+          control={
+            <ui.Button
+              size="small"
+              variant="neutral"
+              icon="photo"
+              disabled={!ctx.desktop}
+              onClick={() => void pickImage()}
+            >
+              {ctx.t("settings.ambientImage.pick")}
+            </ui.Button>
+          }
+        />
+        <ui.TextInput
+          label={ctx.t("settings.ambientImage")}
+          placeholder="/path/to/image.png"
+          value={prefs.value.ambientImage}
+          onInput={(value) => prefs.update((draft) => void (draft.ambientImage = value))}
         />
       </Section>
 

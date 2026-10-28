@@ -20,6 +20,10 @@ export const Prefs = Schema.Struct({
   mergeMethod: Schema.Literals(["merge", "squash", "rebase"]),
   deleteBranch: Schema.Boolean,
   autoGroup: Schema.Boolean,
+  ambient: Schema.Literals(["off", "dither", "ascii", "pixel", "image"]),
+  ambientIntensity: Schema.Number,
+  ambientSpeed: Schema.Number,
+  ambientImage: Schema.String,
 })
 
 export type Prefs = Schema.Schema.Type<typeof Prefs>
@@ -43,6 +47,10 @@ const defaults: Prefs = {
   mergeMethod: "squash",
   deleteBranch: false,
   autoGroup: false,
+  ambient: "off",
+  ambientIntensity: 12,
+  ambientSpeed: 3,
+  ambientImage: "",
 }
 
 export const definition = Plugin.define({
@@ -161,6 +169,15 @@ export const definition = Plugin.define({
       "settings.section.panel": "Environment panel",
       "settings.section.tabs": "Tabs",
       "settings.section.appearance": "Appearance",
+      "settings.ambient": "Ambient background",
+      "settings.ambient.description": "A slow animated layer behind the interface. Intensity is opacity in percent.",
+      "settings.ambientMode": "Mode",
+      "settings.ambientIntensity": "Intensity",
+      "settings.ambientSpeed": "Speed",
+      "settings.ambientImage": "Image path",
+      "settings.ambientImage.pick": "Choose image…",
+      "command.ambient": "Cycle ambient background",
+      "ambient.image.error": "Could not load the background image.",
       "settings.section.actions": "Actions",
       "settings.enabled": "Enable Workbench",
       "settings.enabled.description": "Turn every Workbench surface on or off.",

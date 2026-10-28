@@ -423,6 +423,11 @@
   border-color: var(--v2-border-border-focus, #6b8afd);
 }
 
+.wb-range {
+  width: 120px;
+  accent-color: var(--v2-text-text-accent, #d97757);
+}
+
 .wb-pill {
   display: flex;
   align-items: center;

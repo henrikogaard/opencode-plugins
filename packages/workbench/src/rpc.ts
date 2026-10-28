@@ -80,6 +80,15 @@ export interface MutationOutput {
   pushed?: boolean
 }
 
+export interface ReadImageInput {
+  path: string
+}
+
+export interface ReadImageOutput {
+  dataUrl?: string
+  error?: string
+}
+
 const PullRequestSchema = {
   type: "object",
   properties: {
@@ -203,6 +212,24 @@ const MutationOutputSchema = {
   additionalProperties: false,
 } as const
 
+const ReadImageInputSchema = {
+  type: "object",
+  properties: {
+    path: { type: "string" },
+  },
+  required: ["path"],
+  additionalProperties: false,
+} as const
+
+const ReadImageOutputSchema = {
+  type: "object",
+  properties: {
+    dataUrl: { type: "string" },
+    error: { type: "string" },
+  },
+  additionalProperties: false,
+} as const
+
 export const Workbench = Rpc.define({
   id: "workbench",
   methods: {
@@ -217,6 +244,10 @@ export const Workbench = Rpc.define({
     mergePull: {
       input: MergePullInputSchema,
       output: MutationOutputSchema,
+    },
+    readImage: {
+      input: ReadImageInputSchema,
+      output: ReadImageOutputSchema,
     },
   },
   events: {
