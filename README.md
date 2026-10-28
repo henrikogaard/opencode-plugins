@@ -106,5 +106,5 @@ The server part was also exercised end-to-end through a local `opencode serve` 2
 - Workbench is restricted to the desktop app's local server. A session on a remote server shows **Local only** and no PR data; its repository is not the same checkout as the local path.
 - The PR list loads at most 50 open pull requests, GitHub's page limit. The setting is labeled accordingly; it is not a complete inventory for very large repositories.
 - Sorting applies to open shell tabs (the vertical rail in side-tabs mode), not to the experimental Inbox list.
-- The Inbox and vertical-tab switch needs the upstream command described in `docs/upstream-interface-command.md`. Until then the commands open Settings → General.
+- The Inbox and vertical-tab switch needs the upstream command described in `docs/upstream-interface-command.md` (issue [#59853](https://github.com/anomalyco/opencode/issues/59853), PR [#59854](https://github.com/anomalyco/opencode/pull/59854)). Until a release ships it, the commands open Settings → General.
 - Create/merge were not exercised against a live repository during development, to avoid changing remote state. The read path was smoke-tested on real repositories.

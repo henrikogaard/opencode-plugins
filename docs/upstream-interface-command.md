@@ -6,47 +6,49 @@ The app already has the three layouts and the setter:
 - `settings.appearance.setTabLayout(value)` changes it.
 - The setting is rendered by `app/src/settings/general/interface-mode.tsx`.
 
-What is missing is a command-palette/keybind entry. The Workbench plugin already tries these IDs:
+The missing piece is a command-palette/keybind entry. The Workbench plugin calls these IDs:
 
 - `view.inbox` → `setTabLayout("inbox")`
 - `view.tabs` → `setTabLayout("vertical")`
-- `view.interfaceMode` → optional cycle command
 
-If none exists, `workbench.inbox` and `workbench.tabs` open **Settings → General** and explain why.
+## Status
 
-## Suggested upstream change
+Proposed and implemented upstream:
 
-Register two commands next to the existing view commands, both enabled when the app interface is mounted:
+- Feature request: https://github.com/anomalyco/opencode/issues/59853
+- Pull request: https://github.com/anomalyco/opencode/pull/59854 (branch `interface-mode-commands` on `henrikogaard/opencode`)
+
+Until a release ships the commands, `workbench.inbox` and `workbench.tabs` open **Settings → General** and explain why. Once the app provides `view.inbox` / `view.tabs`, the same Workbench commands switch immediately, and the shortcuts can be bound in **Settings → Shortcuts**.
+
+## The change
+
+Register two commands next to the other view commands, with no default keybinds:
 
 ```ts
-{
-  id: "view.inbox",
-  title: language.t("command.view.inbox"),
-  group: language.t("command.category.view"),
-  section: "navigation",
-  run: () => settings.appearance.setTabLayout("inbox"),
-},
-{
-  id: "view.tabs",
-  title: language.t("command.view.tabs"),
-  group: language.t("command.category.view"),
-  section: "navigation",
-  run: () => settings.appearance.setTabLayout("vertical"),
-},
+command.register("interface-mode", () => [
+  {
+    id: "view.tabs",
+    title: language.t("command.view.tabs"),
+    category: language.t("command.category.view"),
+    onSelect: () => preferences.appearance.setTabLayout("vertical"),
+  },
+  {
+    id: "view.inbox",
+    title: language.t("command.view.inbox"),
+    category: language.t("command.category.view"),
+    onSelect: () => preferences.appearance.setTabLayout("inbox"),
+  },
+])
 ```
 
-Add copy such as:
+Copy:
 
 ```json
 {
-  "command.view.inbox": "Switch to inbox",
-  "command.view.tabs": "Switch to vertical tabs"
+  "command.view.tabs": "Switch to vertical tabs",
+  "command.view.inbox": "Switch to inbox"
 }
 ```
-
-Optionally bind them. `mod+shift+i` and `mod+shift+v` are suggestions; verify they do not collide with an existing shortcut before assigning defaults.
-
-That is the whole change. No plugin API is needed; once the commands exist, any plugin or the user can bind them, and `workbench.inbox` / `workbench.tabs` start working immediately.
 
 ## Why not a plugin workaround
 
